@@ -559,34 +559,6 @@ class CreateAttentionMaskFromInputMask(nn.Cell):
         attention_mask = self.cast(input_mask, mstype.float16)
         return attention_mask
 
-
-# class CreateAttentionMaskFromInputMask(nn.Cell):
-#     """
-#     Create attention mask according to input mask.
-#     """
-#     def __init__(self):
-#         super(CreateAttentionMaskFromInputMask, self).__init__()
-#         self.cast = P.Cast()
-#         self.reshape = P.Reshape()
-#         self.shape = P.Shape()
-#         self.batch_matmul = P.BatchMatMul()
-
-#     def construct(self, input_mask):
-#         """Create attention mask according to input mask."""
-#         input_shape = self.shape(input_mask)
-#         shape_right = (input_shape[0], 1, input_shape[1])
-#         shape_left = input_shape + (1,)
-
-#         input_mask = self.cast(input_mask, mstype.float16)
-#         mask_left = self.reshape(input_mask, shape_left)
-#         # print("input_mask:", input_mask.shape)
-#         # print("shape_left:", shape_left.shape)
-#         # print("shape_right:", shape_right.shape)
-#         mask_right = self.reshape(input_mask, shape_right)
-#         attention_mask = self.batch_matmul(mask_left, mask_right)
-
-#         return attention_mask
-
 class TransformerModel(nn.Cell):
     """
     Transformer with encoder and decoder.

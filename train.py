@@ -38,7 +38,7 @@ class WithLossCell(nn.Cell):
         outputs = self._backbone(*args[:-1])
         return self._loss_fn(outputs, args[-1])
 
-def load_dict(vocab_dict): 
+def load_dict(vocab_dict):
     VOC_DICT = {}
     """
     load vocabulary dict

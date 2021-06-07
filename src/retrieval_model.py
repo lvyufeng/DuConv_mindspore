@@ -1,23 +1,17 @@
-
-"""
-File: retrieval_model.py
-"""
-import six
-import json
 import numpy as np
-import mindspore.nn as nn
-from mindspore import Tensor, Parameter,ops
-import mindspore
 import copy
-from transformer import TransformerModel
-from gru_layer import BidirectionGRU
+import mindspore
+import mindspore.nn as nn
+from mindspore import Tensor, Parameter, ops
 from mindspore.common.initializer import TruncatedNormal,Constant
-from mytransformer import TransformerEncoder
+from transformer import TransformerModel
+from src.rnns import GRU
+"""
+Retrieval model
+"""
 class Attention(nn.Cell):
     def __init__(self):
         super(Attention,self).__init__()
-        
-       
         self.fc = nn.Dense(256,1)
         #self.matmul = ops.BatchMatMul()
         self.matmul = nn.MatMul().to_float(mindspore.float16)
@@ -29,19 +23,20 @@ class Attention(nn.Cell):
         self.tanh = ops.Tanh()
         self.softmax = ops.Softmax()
         self.cast = ops.Cast()
-    def construct(self,hidden_mem, encoder_vec, encoder_vec_proj):        
+
+    def construct(self, hidden_mem, encoder_vec, encoder_vec_proj):        
         hidden_mem = self.expand_dims(hidden_mem,1)
-        concated = ops.BroadcastTo((encoder_vec_proj.shape[0],encoder_vec_proj.shape[1],256))(hidden_mem)           
-        concated = self.add(encoder_vec_proj,concated)       
+        concated = ops.BroadcastTo((encoder_vec_proj.shape[0], encoder_vec_proj.shape[1],256))(hidden_mem)           
+        concated = self.add(encoder_vec_proj, concated)       
         concated = self.tanh(concated)
         attention_weights = self.fc(concated)   
         attention_weights = self.squeeze_weights(attention_weights)     
         attention_weights = self.softmax(attention_weights)   
         att_context=[]
-        attention_weights = self.expand_dims(attention_weights,1)
+        attention_weights = self.expand_dims(attention_weights, 1)
         attention_weights = self.cast(attention_weights, mindspore.float16)
         encoder_vec = self.cast(encoder_vec, mindspore.float16)
-        context = self.matmul(attention_weights,encoder_vec)
+        context = self.matmul(attention_weights, encoder_vec)
         context = self.cast(context, mindspore.float32)
         context = self.squeeze_context(context)
         return context
@@ -63,7 +58,7 @@ class RetrievalModel(nn.Cell):
         self.attention = Attention()
         self.batch_size = config.batch_size
         self.maxlen_gru=config.seq_length
-        self.gru =BidirectionGRU(self.batch_size, self._emb_size,config.gru_hidden_size,self.maxlen_gru,is_training=True)
+        self.gru = GRU(input_size=self._emb_size, hidden_size=config.gru_hidden_size, bidirectional=True)
         self.dense = nn.Dense(config.seq_length,self._emb_size)
         #self.gru_embed_input = nn.Embedding(voc_size, self._emb_size)  
         # self.encoder = TransformerEncoder(config,is_training)#mytransformer
@@ -77,8 +72,8 @@ class RetrievalModel(nn.Cell):
         self.trans_fc = nn.Dense(self._emb_size,self._emb_size,weight_init=self.trans_weight_init,activation="tanh")
         weight_init_ = TruncatedNormal(0.02)
         bias_init_ = Constant(0.)
-        self.logit_fc = nn.Dense(2*self._emb_size,num_labels,weight_init=weight_init_,bias_init=bias_init_)
-        self.trans_logit_fc = nn.Dense(self._emb_size,num_labels)
+        self.logit_fc = nn.Dense(2*self._emb_size, num_labels, weight_init=weight_init_, bias_init=bias_init_)
+        self.trans_logit_fc = nn.Dense(self._emb_size, num_labels)
         self.dropout = nn.Dropout(0.9)
         self.testdropout = nn.Dropout(1.0)
         self.cast = ops.Cast()
@@ -86,16 +81,17 @@ class RetrievalModel(nn.Cell):
         self.posembedding = nn.Embedding(self.max_position_embeddings, self._emb_size)
         self.segembedding = nn.Embedding(self.sent_types, self._emb_size)
         self.transpose = ops.Transpose()
-    # kn_ids_, context_next_sent_index_,context_ids_, context_pos_ids_, context_segment_ids_, context_attn_mask_,labels_
+
     def construct(self,kn_ids, context_next_sent_index,context_ids, context_pos_ids, context_segment_ids, context_attn_mask, seq_lengths):
         context_emb_out = self.embedding(context_ids)
-        context_position_emb_out =  self.posembedding(context_pos_ids)
+        context_position_emb_out = self.posembedding(context_pos_ids)
         context_segment_emb_out = self.segembedding(context_segment_ids)
-        # context_emb_out = context_emb_out +  context_position_emb_out#mytransformer
-        # context_emb_out = context_emb_out + context_segment_emb_out#mytransformer
-        context_enc_out = self.encoder(context_emb_out, context_position_emb_out, context_segment_emb_out,context_attn_mask)
-        # context_enc_out = self.encoder(context_emb_out, context_attn_mask, self.seq_length)#mytransformer
+        context_emb_out = context_emb_out +  context_position_emb_out
+        context_emb_out = context_emb_out + context_segment_emb_out
+
+        context_enc_out = self.encoder(context_emb_out, context_emb_out, context_emb_out, context_attn_mask)
         context_enc_out = self.cast(context_enc_out, mindspore.float32)
+
         reshaped_emb_out = self.reshape(context_enc_out, (-1, self._emb_size))
         next_sent_index = self.cast(context_next_sent_index, mindspore.int32)
         next_sent_feat = self.gather(reshaped_emb_out, next_sent_index,0)
