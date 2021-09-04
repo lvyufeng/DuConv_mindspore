@@ -1,7 +1,7 @@
 import mindspore.nn as nn
 import mindspore.ops as P
 from .gru import GRU
-from .bert import BertModel, BertConfig
+from .bert import BertModel
 
 class MemoryNet(nn.Cell):
     def __init__(self, vocab_size, embed_size, hidden_size):
@@ -28,7 +28,7 @@ class Attention(nn.Cell):
         attention_weights = self.fc(concated)
         attention_weights = P.Softmax(1)(attention_weights)
         scaled = attention_weights * encoder_vec
-        context = P.ReduceSum(True)(scaled, 1)
+        context = P.ReduceSum(False)(scaled, 1)
         return context
 
 class Retrieval(nn.Cell):
@@ -36,17 +36,17 @@ class Retrieval(nn.Cell):
         super().__init__()
         self.use_kn = use_kn
         self.bert = BertModel(config)
-        self.memory = MemoryNet(config.vocab_size, config.embed_size, 128)
+        self.memory = MemoryNet(config.vocab_size, config.hidden_size, 128)
         self.attention = Attention(config.hidden_size)
-        self.fc = nn.Dense(config.hidden_size * 2 if self.use_kn else config.hidden_size, config.num_labels)
-        self.dropout = nn.Dropout(1-config.dropout_prob)
+        self.fc = nn.Dense(config.hidden_size * 2 if self.use_kn else config.hidden_size, 3)
+        self.dropout = nn.Dropout(1-config.hidden_dropout_prob)
 
     def construct(self, input_ids, segment_ids, kn_ids=None, seq_length=None):
         _, h_pooled = self.bert(input_ids, segment_ids)
         if self.use_kn:
             memory_outputs, memory_proj_outputs = self.memory(kn_ids, seq_length)
             kn_context = self.attention(h_pooled, memory_outputs, memory_proj_outputs)
-            cls_feats = P.Concat(2)(h_pooled, kn_context)
+            cls_feats = P.Concat(1)((h_pooled, kn_context))
         else:
             cls_feats = h_pooled
         cls_feats = self.dropout(cls_feats)

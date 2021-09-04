@@ -4,6 +4,7 @@ import mindspore.nn as nn
 import mindspore.ops as P
 from mindspore import Tensor, Parameter, ParameterTuple
 from mindspore.ops.primitive import constexpr
+import mindspore.common.dtype as mstype
 
 activation_map = {
     'relu': P.ReLU(),
@@ -47,30 +48,37 @@ class DynamicGRU(nn.Cell):
         super().__init__()
         self.cell = GRUCell(gate_activation, candidate_activation, origin_mode)
     
-    def construct(self, x, h_0, w_ih, w_hh, b_ih, b_hh):
-        '''recurrent steps without sequence length'''
+    def construct(self, x, h, seq_length, w_ih, w_hh, b_ih, b_hh):
+        '''recurrent steps with sequence length'''
         time_step = x.shape[0]
+        h_t = h
+
+        hidden_size = h.shape[-1]
+        zero_output = P.ZerosLike()(h_t)
+        seq_length = P.Cast()(seq_length, mstype.float32)
+        seq_length = P.BroadcastTo((hidden_size, -1))(seq_length)
+        seq_length = P.Cast()(seq_length, mstype.int32)
+        seq_length = P.Transpose()(seq_length, (1, 0))
+
         outputs = []
+        state_t = h_t
         t = 0
-        h = h_0
         while t < time_step:
             x_t = x[t:t+1:1]
             x_t = P.Squeeze(0)(x_t)
-            h = self.cell(x_t, h, w_ih, w_hh, b_ih, b_hh)
-            if self.is_lstm:
-                outputs.append(h[0])
-            else:
-                outputs.append(h)
+            h_t = self.cell(x_t, state_t, w_ih, w_hh, b_ih, b_hh)
+            seq_cond = seq_length > t
+            state_t = P.Select()(seq_cond, h_t, state_t)
+            output = P.Select()(seq_cond, h_t, zero_output)
+            outputs.append(output)
             t += 1
         outputs = P.Stack()(outputs)
-        return outputs, h
+        return outputs, state_t
 
 @constexpr
-def _init_state(shape, dtype, is_lstm):
+def _init_state(shape, dtype):
     hx = Tensor(np.zeros(shape), dtype)
     cx = Tensor(np.zeros(shape), dtype)
-    if is_lstm:
-        return (hx, cx)
     return hx
 
 class GRU(nn.Cell):
@@ -108,9 +116,11 @@ class GRU(nn.Cell):
         self.gru = DynamicGRU(gate_activation, candidate_activation, origin_mode)
         self.reverse = P.ReverseV2([0])
         self.reverse_sequence = P.ReverseSequence(0, 1)
+        self.transpose = P.Transpose()
 
     def construct(self, x, hx=None, seq_length=None):
         max_batch_size = x.shape[0]
+        x = self.transpose(x, (1, 0, 2))
         if hx is None:
             hx = _init_state((2, max_batch_size, self.hidden_size),
                              x.dtype)
@@ -126,11 +136,12 @@ class GRU(nn.Cell):
             x_b = self.reverse(x)
         else:
             x_b = self.reverse_sequence(x, seq_length)
-        output_f, h_t_f = self.rnn(x, h_f_i, seq_length, w_f_ih, w_f_hh, b_f_ih, b_f_hh)
-        output_b, h_t_b = self.rnn(x_b, h_b_i, seq_length, w_b_ih, w_b_hh, b_b_ih, b_b_hh)
+        output_f, h_t_f = self.gru(x, h_f_i, seq_length, w_f_ih, w_f_hh, b_f_ih, b_f_hh)
+        output_b, h_t_b = self.gru(x_b, h_b_i, seq_length, w_b_ih, w_b_hh, b_b_ih, b_b_hh)
         if seq_length is None:
             output_b = self.reverse(output_b)
         else:
             output_b = self.reverse_sequence(output_b, seq_length)
         output = P.Concat(2)((output_f, output_b))
+        output = self.transpose(output, (1, 0, 2))
         return output

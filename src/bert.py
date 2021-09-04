@@ -6,7 +6,7 @@ import mindspore.common.dtype as mstype
 from mindspore.common.tensor import Tensor
 from typing import Optional
 from mindspore import Tensor, Parameter
-from mindspore.common.initializer import initializer, XavierUniform, Zero
+from mindspore.common.initializer import initializer, XavierUniform, Zero, TruncatedNormal
 
 class GELU(nn.Cell):
     def __init__(self):
@@ -59,16 +59,16 @@ class ScaledDotProductAttention(nn.Cell):
         return context, attn
 
 class MultiHeadAttention(nn.Cell):
-    def __init__(self, d_model, n_heads, dropout):
+    def __init__(self, d_model, n_heads, dropout, initializer_range=0.02):
         super().__init__()
         self.n_heads = n_heads
-        self.W_Q = nn.Dense(d_model, d_model)
-        self.W_K = nn.Dense(d_model, d_model)
-        self.W_V = nn.Dense(d_model, d_model)
-        self.linear = nn.Dense(d_model, d_model)
+        self.W_Q = nn.Dense(d_model, d_model, weight_init=TruncatedNormal(initializer_range), bias_init=Zero())
+        self.W_K = nn.Dense(d_model, d_model, weight_init=TruncatedNormal(initializer_range), bias_init=Zero())
+        self.W_V = nn.Dense(d_model, d_model, weight_init=TruncatedNormal(initializer_range), bias_init=Zero())
+        self.linear = nn.Dense(d_model, d_model, weight_init=TruncatedNormal(initializer_range), bias_init=Zero())
         self.head_dim = d_model // n_heads
         assert self.head_dim * n_heads == d_model, "embed_dim must be divisible by num_heads"
-        self.layer_norm = nn.LayerNorm((d_model, ), epsilon=1e-12)
+        self.layer_norm = nn.LayerNorm((d_model, ), epsilon=1e-12, gamma_init=TruncatedNormal(initializer_range), beta_init=TruncatedNormal(initializer_range))
         self.attention = ScaledDotProductAttention(self.head_dim, dropout)
         # ops
         self.transpose = P.Transpose()
@@ -113,17 +113,18 @@ def get_attn_pad_mask(seq_q, seq_k):
 
 class BertConfig:
     def __init__(self,
-                seq_length=128,
+                seq_length=256,
                 vocab_size=32000,
-                hidden_size=768,
-                num_hidden_layers=12,
-                num_attention_heads=12,
-                intermediate_size=3072,
+                hidden_size=256,
+                num_hidden_layers=4,
+                num_attention_heads=8,
+                intermediate_size=1024,
                 hidden_act="gelu",
                 hidden_dropout_prob=0.1,
                 attention_probs_dropout_prob=0.1,
-                max_position_embeddings=512,
-                type_vocab_size=2):
+                max_position_embeddings=256,
+                type_vocab_size=2,
+                initializer_range=0.02):
         self.seq_length = seq_length
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
@@ -135,30 +136,33 @@ class BertConfig:
         self.attention_probs_dropout_prob = attention_probs_dropout_prob
         self.max_position_embeddings = max_position_embeddings
         self.type_vocab_size = type_vocab_size
+        self.initializer_range = initializer_range
 
 class PoswiseFeedForwardNet(nn.Cell):
-    def __init__(self, d_model, d_ff, activation:str='gelu'):
+    def __init__(self, d_model, d_ff, activation:str='gelu', initializer_range=0.02, dropout=0.0):
         super().__init__()
-        self.fc1 = nn.Dense(d_model, d_ff)
-        self.fc2 = nn.Dense(d_ff, d_model)
+        self.fc1 = nn.Dense(d_model, d_ff, weight_init=TruncatedNormal(initializer_range), bias_init=Zero())
+        self.fc2 = nn.Dense(d_ff, d_model, weight_init=TruncatedNormal(initializer_range), bias_init=Zero())
         self.activation = activation_map.get(activation, nn.GELU())
-        self.layer_norm = nn.LayerNorm((d_model,), epsilon=1e-12)
-
+        self.layer_norm = nn.LayerNorm((d_model,), epsilon=1e-12, gamma_init=TruncatedNormal(initializer_range), beta_init=TruncatedNormal(initializer_range))
+        self.dropout = nn.Dropout(1-dropout)
     def construct(self, inputs):
         residual = inputs
         outputs = self.fc1(inputs)
         outputs = self.activation(outputs)
         
         outputs = self.fc2(outputs)
+        outputs = self.dropout(outputs)
         return self.layer_norm(outputs + residual)
 
 class BertEmbeddings(nn.Cell):
     def __init__(self, config):
         super().__init__()
-        self.tok_embed = nn.Embedding(config.vocab_size, config.hidden_size)
-        self.pos_embed = nn.Embedding(config.max_position_embeddings, config.hidden_size)
-        self.seg_embed = nn.Embedding(config.type_vocab_size, config.hidden_size)
-        self.norm = nn.LayerNorm((config.hidden_size,), epsilon=1e-12)
+        self.tok_embed = nn.Embedding(config.vocab_size, config.hidden_size, embedding_table=TruncatedNormal(config.initializer_range))
+        self.pos_embed = nn.Embedding(config.max_position_embeddings, config.hidden_size, embedding_table=TruncatedNormal(config.initializer_range))
+        self.seg_embed = nn.Embedding(config.type_vocab_size, config.hidden_size, embedding_table=TruncatedNormal(config.initializer_range))
+        self.norm = nn.LayerNorm((config.hidden_size,), epsilon=1e-12, gamma_init=TruncatedNormal(config.initializer_range), beta_init=TruncatedNormal(config.initializer_range))
+        self.dropout = nn.Dropout(1-config.hidden_dropout_prob)
 
         self.expand_dims = P.ExpandDims()
 
@@ -169,14 +173,15 @@ class BertEmbeddings(nn.Cell):
         seg_embedding = self.seg_embed(seg)
         tok_embedding = self.tok_embed(x)
         embedding = tok_embedding + self.pos_embed(pos) + seg_embedding
-        # embedding = self.tok_embed(x) + self.seg_embed(seg)
-        return self.norm(embedding)
+        embedding = self.norm(embedding)
+        embedding = self.dropout(embedding)
+        return embedding
 
 class BertEncoderLayer(nn.Cell):
-    def __init__(self, d_model, n_heads, d_ff, activation, dropout):
+    def __init__(self, d_model, n_heads, d_ff, activation, attention_dropout, dropout):
         super().__init__()
-        self.enc_self_attn = MultiHeadAttention(d_model, n_heads, dropout)
-        self.pos_ffn = PoswiseFeedForwardNet(d_model, d_ff, activation)
+        self.enc_self_attn = MultiHeadAttention(d_model, n_heads, attention_dropout)
+        self.pos_ffn = PoswiseFeedForwardNet(d_model, d_ff, activation, dropout)
 
     def construct(self, enc_inputs, enc_self_attn_mask):
         enc_outputs, attn = self.enc_self_attn(enc_inputs, enc_inputs, enc_inputs, enc_self_attn_mask)
@@ -186,13 +191,20 @@ class BertEncoderLayer(nn.Cell):
 class BertEncoder(nn.Cell):
     def __init__(self, config):
         super().__init__()
-        self.layers = nn.CellList([BertEncoderLayer(config.hidden_size, config.num_attention_heads, config.intermediate_size, config.hidden_act, config.hidden_dropout_prob) for _ in range(config.num_hidden_layers)])
+        self.layers = nn.CellList([
+            BertEncoderLayer(config.hidden_size,
+                            config.num_attention_heads,
+                            config.intermediate_size,
+                            config.hidden_act,
+                            config.attention_probs_dropout_prob,
+                            config.hidden_dropout_prob)
+            for _ in range(config.num_hidden_layers)
+            ])
 
     def construct(self, inputs, enc_self_attn_mask):
         outputs = inputs
         for layer in self.layers:
             outputs, enc_self_attn = layer(outputs, enc_self_attn_mask)
-            # print(outputs)
         return outputs
 
 class BertModel(nn.Cell):
@@ -200,12 +212,11 @@ class BertModel(nn.Cell):
         super().__init__(config)
         self.embeddings = BertEmbeddings(config)
         self.encoder = BertEncoder(config)
-        self.pooler = nn.Dense(config.hidden_size, config.hidden_size, activation='tanh')
+        self.pooler = nn.Dense(config.hidden_size, config.hidden_size, activation='tanh', weight_init=TruncatedNormal(config.initializer_range), bias_init=Zero())
         
     def construct(self, input_ids, segment_ids):
         outputs = self.embeddings(input_ids, segment_ids)
         enc_self_attn_mask = get_attn_pad_mask(input_ids, input_ids)
-        print(enc_self_attn_mask)
         outputs = self.encoder(outputs, enc_self_attn_mask)
         h_pooled = self.pooler(outputs[:, 0]) 
         return outputs, h_pooled

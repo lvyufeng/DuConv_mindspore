@@ -9,9 +9,6 @@ import sys
 import json
 import collections
 
-
-
-
 def convert_session_to_sample(session_file, sample_file):
     """
     convert_session_to_sample

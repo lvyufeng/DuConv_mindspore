@@ -162,7 +162,6 @@ def preprocessing_for_one_conversation(text, \
 
     return model_text, candidates
 
-
 def convert_conversation_corpus_to_model_text(corpus_file, 
                                               text_file,
                                               use_knowledge=True,
