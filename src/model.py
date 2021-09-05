@@ -41,8 +41,8 @@ class Retrieval(nn.Cell):
         self.fc = nn.Dense(config.hidden_size * 2 if self.use_kn else config.hidden_size, 3)
         self.dropout = nn.Dropout(1-config.hidden_dropout_prob)
 
-    def construct(self, input_ids, segment_ids, kn_ids=None, seq_length=None):
-        _, h_pooled = self.bert(input_ids, segment_ids)
+    def construct(self, input_ids, segment_ids, position_ids=None, kn_ids=None, seq_length=None):
+        _, h_pooled = self.bert(input_ids, segment_ids, position_ids)
         if self.use_kn:
             memory_outputs, memory_proj_outputs = self.memory(kn_ids, seq_length)
             kn_context = self.attention(h_pooled, memory_outputs, memory_proj_outputs)

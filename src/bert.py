@@ -104,8 +104,8 @@ def get_attn_pad_mask(seq_q, seq_k):
     batch_size, len_q = seq_q.shape
     batch_size, len_k = seq_k.shape
 
-    pad_attn_mask = P.ExpandDims()(P.ZerosLike()(seq_k), 1)
-    # pad_attn_mask = P.ExpandDims()(P.Equal()(seq_k, 0), 1)
+    # pad_attn_mask = P.ExpandDims()(P.ZerosLike()(seq_k), 1)
+    pad_attn_mask = P.ExpandDims()(P.Equal()(seq_k, 0), 1)
     pad_attn_mask = P.Cast()(pad_attn_mask, mstype.int32)
     pad_attn_mask = P.BroadcastTo((batch_size, len_q, len_k))(pad_attn_mask)
     # pad_attn_mask = P.Cast()(pad_attn_mask, mstype.bool_)
@@ -166,10 +166,11 @@ class BertEmbeddings(nn.Cell):
 
         self.expand_dims = P.ExpandDims()
 
-    def construct(self, x, seg):
+    def construct(self, x, seg, pos=None):
         seq_len = x.shape[1]
-        pos = mnp.arange(seq_len)
-        pos = P.BroadcastTo(x.shape)(self.expand_dims(pos, 0))
+        if pos is None:
+            pos = mnp.arange(seq_len)
+            pos = P.BroadcastTo(x.shape)(self.expand_dims(pos, 0))
         seg_embedding = self.seg_embed(seg)
         tok_embedding = self.tok_embed(x)
         embedding = tok_embedding + self.pos_embed(pos) + seg_embedding
@@ -214,8 +215,8 @@ class BertModel(nn.Cell):
         self.encoder = BertEncoder(config)
         self.pooler = nn.Dense(config.hidden_size, config.hidden_size, activation='tanh', weight_init=TruncatedNormal(config.initializer_range), bias_init=Zero())
         
-    def construct(self, input_ids, segment_ids):
-        outputs = self.embeddings(input_ids, segment_ids)
+    def construct(self, input_ids, segment_ids, position_ids=None):
+        outputs = self.embeddings(input_ids, segment_ids, position_ids)
         enc_self_attn_mask = get_attn_pad_mask(input_ids, input_ids)
         outputs = self.encoder(outputs, enc_self_attn_mask)
         h_pooled = self.pooler(outputs[:, 0]) 
