@@ -10,8 +10,6 @@ import json
 import random
 import collections
 
-
-
 def load_candidate_set(candidate_set_file):
     """
     load candidate set

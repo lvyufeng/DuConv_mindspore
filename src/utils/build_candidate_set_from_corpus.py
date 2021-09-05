@@ -92,7 +92,6 @@ def build_candidate_set_from_corpus(corpus_file, candidate_set_file):
     fout.write(json.dumps(slot_dict, ensure_ascii=False))
     fout.close()
 
-
 def main():
     build_candidate_set_from_corpus(sys.argv[1], sys.argv[2])
     print(sys.argv[1], sys.argv[2])
