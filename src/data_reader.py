@@ -1,3 +1,4 @@
+import argparse
 import numpy as np
 from mindspore.mindrecord import FileWriter
 from mindspore.log import logging
@@ -15,8 +16,7 @@ def load_dict(vocab_path):
     return vocab_dict
 
 class DataProcessor:
-    def __init__(self, data_dir, task_name, vocab_path, max_seq_len, do_lower_case):
-        self.data_dir = data_dir
+    def __init__(self, task_name, vocab_path, max_seq_len, do_lower_case):
         self.task_name = task_name
         self.max_seq_len = max_seq_len
         self.do_lower_case = do_lower_case
@@ -188,3 +188,22 @@ def convert_single_example(example, label_list, max_seq_length, vocab_dict):
         label_ids=label_ids)
 
     return feature
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="read dataset and save it to minddata")
+    parser.add_argument("--task_name", type=str, default="match", choices=["match", "match_kn", "match_kn_gene"], help="vocab file")
+    parser.add_argument("--vocab_path", type=str, default="", help="vocab file")
+    parser.add_argument("--max_seq_len", type=int, default=256,
+                        help="The maximum total input sequence length after WordPiece tokenization. "
+                        "Sequences longer than this will be truncated, and sequences shorter "
+                        "than this will be padded.")
+    parser.add_argument("--do_lower_case", type=str, default="true",
+                        help="Whether to lower case the input text. "
+                        "Should be True for uncased models and False for cased models.")
+
+    parser.add_argument("--input_file", type=str, default="", help="raw data file")
+    parser.add_argument("--output_file", type=str, default="", help="minddata file")
+    args_opt = parser.parse_args()
+
+    processer = DataProcessor(args_opt.task_name, args_opt.vocab_path, args_opt.max_seq_len, True if args_opt.do_lower_case == "true" else False)
+    processer.file_based_convert_examples_to_features(args_opt.input_file, args_opt.output_file)
