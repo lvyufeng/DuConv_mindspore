@@ -3,7 +3,7 @@ import mindspore.common.dtype as mstype
 from mindspore.nn.learning_rate_schedule import LearningRateSchedule
 
 class Noam(LearningRateSchedule):
-    def __init__(self, d_model, warmup_steps, learning_rate):
+    def __init__(self, d_model, warmup_steps, learning_rate=1.0):
         super().__init__()
         self.d_model = d_model
         self.warmup_steps = warmup_steps
