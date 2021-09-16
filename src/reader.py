@@ -1,4 +1,5 @@
 import argparse
+from typing import Sequence
 import numpy as np
 from mindspore.mindrecord import FileWriter
 from mindspore.log import logging
@@ -62,9 +63,9 @@ class DataProcessor:
         writer = FileWriter(file_name=output_file, shard_num=1)
         nlp_schema = {
             "context_id": {"type": "int64", "shape": [-1]},
-            "context_pos_id": {"type": "int64", "shape": [-1]},
             "context_segment_id": {"type": "int64", "shape": [-1]},
-            "labels_list": {"type": "int64", "shape": [-1]},
+            "context_pos_id": {"type": "int64", "shape": [-1]},
+            "labels_list": {"type": "int64", "shape": [-1]}
         }
         if 'kn' in self.task_name:
             nlp_schema['kn_id'] = {"type": "int64", "shape": [-1]}
@@ -168,7 +169,7 @@ def convert_single_example(example, label_list, max_seq_length, vocab_dict):
     context_ids = convert_tokens_to_ids(context_tokens, vocab_dict)
     context_ids = context_ids + [0] * (max_seq_length - len(context_ids))
     context_pos_ids = list(range(len(context_ids))) + [0] * (max_seq_length - len(context_ids))
-    segment_ids = segment_ids + [0] * (max_seq_length - len(context_ids))
+    segment_ids = segment_ids + [0] * (max_seq_length - len(segment_ids))
     label_ids = label_map[example.label_text]
     if tokens_kn: 
         kn_ids = convert_tokens_to_ids(tokens_kn, vocab_dict)
@@ -179,6 +180,7 @@ def convert_single_example(example, label_list, max_seq_length, vocab_dict):
         kn_ids = []
         kn_seq_length = 0
 
+    # print(len(context_ids), len(context_pos_ids), len(segment_ids), len(kn_ids), kn_seq_length, label_ids)
     feature = InputFeatures(
         context_ids=context_ids,
         context_pos_ids=context_pos_ids,

@@ -6,9 +6,9 @@ from mindspore import log as logger
 def create_dataset(batch_size, device_num=1, rank=0, do_shuffle=True, data_file_path=None, use_knowledge=False):
     """create train dataset"""
     if use_knowledge:
-        colums_list = ["context_id", "context_pos_id", "context_segment_id", "labels_list", "kn_id", "kn_seq_length"]
+        colums_list = ["context_id", "context_segment_id", "context_pos_id", "kn_id", "kn_seq_length", "labels_list"]
     else:
-        colums_list = ["context_id", "context_pos_id", "context_segment_id", "labels_list"]
+        colums_list = ["context_id", "context_segment_id", "context_pos_id", "labels_list"]
 
     # apply repeat operations
     data_set = ds.MindDataset(data_file_path,

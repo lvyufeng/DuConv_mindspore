@@ -137,3 +137,5 @@ target.txt*
 
 .vscode/
 dataset/
+analyze_fail*
+data*
