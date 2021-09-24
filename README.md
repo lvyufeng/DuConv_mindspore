@@ -5,7 +5,7 @@
 #### Ascend处理器上运行
 
 ```bash
-bash run_train.sh
+bash src/run_train.sh
 ```
 #### Ascend处理器上预测
 ```bash

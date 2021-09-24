@@ -5,12 +5,12 @@ from mindspore import context
 from src.model import RetrievalWithLoss
 from src.bert import BertConfig
 from src.lr_schedule import Noam
-from src.callbacks import LossCallBack
+from src.callbacks import TimeMonitor
 from mindspore.nn.optim import Adam
 from mindspore.train.model import Model
 from mindspore.nn import TrainOneStepCell
 from src.dataset import create_dataset
-from mindspore.train.callback import CheckpointConfig, ModelCheckpoint, TimeMonitor, LossMonitor
+from mindspore.train.callback import CheckpointConfig, ModelCheckpoint, LossMonitor
 
 def parse_args():
     """set and check parameters"""
@@ -55,19 +55,19 @@ def run_duconv():
 
     max_train_steps = args.epoch * steps_per_epoch
     warmup_steps = int(max_train_steps * args.warmup_proportion)
-
+    keep_checkpoint = int(max_train_steps / 1000) + 1
     network = RetrievalWithLoss(config, use_kn)
-    lr_schedule = Noam(config.hidden_size, warmup_steps)
+    lr_schedule = Noam(config.hidden_size, warmup_steps, args.learning_rate)
     optimizer = Adam(network.trainable_params(), lr_schedule)
     network_one_step = TrainOneStepCell(network, optimizer)
     model = Model(network_one_step)
-    ckpt_config = CheckpointConfig(save_checkpoint_steps=steps_per_epoch, keep_checkpoint_max=args.epoch)
+    ckpt_config = CheckpointConfig(save_checkpoint_steps=1000, keep_checkpoint_max=keep_checkpoint)
     ckpoint_cb = ModelCheckpoint(prefix=args.task_name,
                                  directory=None if args.save_checkpoint_path == "" else args.save_checkpoint_path,
                                  config=ckpt_config)
-    callbacks = [TimeMonitor(dataset.get_dataset_size()), LossCallBack(10), LossMonitor(), ckpoint_cb]
+    callbacks = [TimeMonitor(100), LossMonitor(100), ckpoint_cb]
 
-    model.train(args.epoch, dataset, callbacks)
+    model.train(args.epoch, dataset, callbacks, dataset_sink_mode=False)
 
 if __name__ == "__main__":
     run_duconv()

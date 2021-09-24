@@ -1,5 +1,37 @@
 import math
+import time
 from mindspore.train.callback import Callback
+from numpy.lib.function_base import average
+
+class TimeMonitor(Callback):
+    """
+    Monitor the time in training.
+
+    Args:
+        data_size (int): How many steps are the intervals between print information each time.
+            if the program get `batch_num` during training, `data_size` will be set to `batch_num`,
+            otherwise `data_size` will be used. Default: None.
+
+    Raises:
+        ValueError: If data_size is not positive int.
+    """
+
+    def __init__(self, per_print_times=1):
+        super(TimeMonitor, self).__init__()
+        self._per_print_times = per_print_times
+        self.epoch_time = time.time()
+        self.time_list = []
+
+    def step_begin(self, run_context):
+        self.epoch_time = time.time()
+
+    def step_end(self, run_context):
+        step_seconds = (time.time() - self.epoch_time) * 1000
+        self.time_list.append(step_seconds)
+        cb_params = run_context.original_args()
+        if self._per_print_times != 0 and cb_params.cur_step_num % self._per_print_times == 0:
+            print("per step time: {:5.3f} ms".format(average(self.time_list)), flush=True)
+        self.time_list = []
 
 class LossCallBack(Callback):
     """

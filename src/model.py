@@ -69,3 +69,14 @@ class RetrievalWithLoss(nn.Cell):
         # print(out.shape, inputs[-1].shape)
         labels = self.squeeze(inputs[-1])
         return self.loss(out, labels)
+
+class RetrievalWithSoftmax(nn.Cell):
+    def __init__(self, config, use_kn):
+        super().__init__()
+        self.network = Retrieval(config, use_kn)
+        self.softmax = nn.Softmax()
+    
+    def construct(self, *inputs):
+        out = self.network(*inputs)
+        out = self.softmax(out)
+        return out
