@@ -6,7 +6,7 @@ import mindspore.common.dtype as mstype
 from mindspore.common.tensor import Tensor
 from typing import Optional
 from mindspore import Tensor, Parameter
-from mindspore.common.initializer import initializer, XavierUniform, Zero, TruncatedNormal
+from mindspore.common.initializer import initializer, XavierUniform, Zero, TruncatedNormal, Constant
 
 class GELU(nn.Cell):
     def __init__(self):
@@ -62,13 +62,13 @@ class MultiHeadAttention(nn.Cell):
     def __init__(self, d_model, n_heads, dropout, initializer_range=0.02):
         super().__init__()
         self.n_heads = n_heads
-        self.W_Q = nn.Dense(d_model, d_model, weight_init=TruncatedNormal(initializer_range), bias_init=Zero())
-        self.W_K = nn.Dense(d_model, d_model, weight_init=TruncatedNormal(initializer_range), bias_init=Zero())
-        self.W_V = nn.Dense(d_model, d_model, weight_init=TruncatedNormal(initializer_range), bias_init=Zero())
-        self.linear = nn.Dense(d_model, d_model, weight_init=TruncatedNormal(initializer_range), bias_init=Zero())
+        self.W_Q = nn.Dense(d_model, d_model, weight_init='xavier_uniform', bias_init=Zero())
+        self.W_K = nn.Dense(d_model, d_model, weight_init='xavier_uniform', bias_init=Zero())
+        self.W_V = nn.Dense(d_model, d_model, weight_init='xavier_uniform', bias_init=Zero())
+        self.linear = nn.Dense(d_model, d_model, weight_init='xavier_uniform', bias_init=Zero())
         self.head_dim = d_model // n_heads
         assert self.head_dim * n_heads == d_model, "embed_dim must be divisible by num_heads"
-        self.layer_norm = nn.LayerNorm((d_model, ), epsilon=1e-12, gamma_init=TruncatedNormal(initializer_range), beta_init=TruncatedNormal(initializer_range))
+        self.layer_norm = nn.LayerNorm((d_model, ), epsilon=1e-12, gamma_init=Constant(1.0), beta_init=Zero())
         self.attention = ScaledDotProductAttention(self.head_dim, dropout)
         # ops
         self.transpose = P.Transpose()
@@ -141,10 +141,10 @@ class BertConfig:
 class PoswiseFeedForwardNet(nn.Cell):
     def __init__(self, d_model, d_ff, activation:str='gelu', initializer_range=0.02, dropout=0.0):
         super().__init__()
-        self.fc1 = nn.Dense(d_model, d_ff, weight_init=TruncatedNormal(initializer_range), bias_init=Zero())
-        self.fc2 = nn.Dense(d_ff, d_model, weight_init=TruncatedNormal(initializer_range), bias_init=Zero())
+        self.fc1 = nn.Dense(d_model, d_ff, weight_init='xavier_uniform', bias_init=Zero())
+        self.fc2 = nn.Dense(d_ff, d_model, weight_init='xavier_uniform', bias_init=Zero())
         self.activation = activation_map.get(activation, nn.GELU())
-        self.layer_norm = nn.LayerNorm((d_model,), epsilon=1e-12, gamma_init=TruncatedNormal(initializer_range), beta_init=TruncatedNormal(initializer_range))
+        self.layer_norm = nn.LayerNorm((d_model,), epsilon=1e-12, gamma_init=Constant(1.0), beta_init=Zero())
         self.dropout = nn.Dropout(1-dropout)
     def construct(self, inputs):
         residual = inputs
@@ -158,10 +158,10 @@ class PoswiseFeedForwardNet(nn.Cell):
 class BertEmbeddings(nn.Cell):
     def __init__(self, config):
         super().__init__()
-        self.tok_embed = nn.Embedding(config.vocab_size, config.hidden_size, embedding_table=TruncatedNormal(config.initializer_range))
-        self.pos_embed = nn.Embedding(config.max_position_embeddings, config.hidden_size, embedding_table=TruncatedNormal(config.initializer_range))
-        self.seg_embed = nn.Embedding(config.type_vocab_size, config.hidden_size, embedding_table=TruncatedNormal(config.initializer_range))
-        self.norm = nn.LayerNorm((config.hidden_size,), epsilon=1e-12, gamma_init=TruncatedNormal(config.initializer_range), beta_init=TruncatedNormal(config.initializer_range))
+        self.tok_embed = nn.Embedding(config.vocab_size, config.hidden_size, embedding_table='xavier_uniform')
+        self.pos_embed = nn.Embedding(config.max_position_embeddings, config.hidden_size, embedding_table='xavier_uniform')
+        self.seg_embed = nn.Embedding(config.type_vocab_size, config.hidden_size, embedding_table='xavier_uniform')
+        self.norm = nn.LayerNorm((config.hidden_size,), epsilon=1e-12, gamma_init=Constant(1.0), beta_init=Zero())
         self.dropout = nn.Dropout(1-config.hidden_dropout_prob)
 
         self.expand_dims = P.ExpandDims()

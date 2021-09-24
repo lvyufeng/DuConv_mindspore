@@ -92,21 +92,20 @@ class GRU(nn.Cell):
         self.w_hh_list = []
         self.b_ih_list = []
         self.b_hh_list = []
-        stdv = 1 / math.sqrt(self.hidden_size)
         for direction in range(num_directions):
             suffix = '_reverse' if direction == 1 else ''
 
             self.w_ih_list.append(Parameter(
-                Tensor(np.random.uniform(-stdv, stdv, (gate_size, input_size)).astype(np.float32)),
+                Tensor(np.random.normal(0, 0.02, (gate_size, input_size)).astype(np.float32)),
                 name='weight_ih_l{}'.format(suffix)))
             self.w_hh_list.append(Parameter(
-                Tensor(np.random.uniform(-stdv, stdv, (gate_size, hidden_size)).astype(np.float32)),
+                Tensor(np.random.normal(0, 0.02, (gate_size, hidden_size)).astype(np.float32)),
                 name='weight_hh_l{}'.format(suffix)))
             self.b_ih_list.append(Parameter(
-                Tensor(np.random.uniform(-stdv, stdv, (gate_size)).astype(np.float32)),
+                Tensor(np.random.normal(0, 0.02, (gate_size)).astype(np.float32)),
                 name='bias_ih_l{}'.format(suffix)))
             self.b_hh_list.append(Parameter(
-                Tensor(np.random.uniform(-stdv, stdv, (gate_size)).astype(np.float32)),
+                Tensor(np.random.normal(0, 0.02, (gate_size)).astype(np.float32)),
                     name='bias_hh_l{}'.format(suffix)))
         self.w_ih_list = ParameterTuple(self.w_ih_list)
         self.w_hh_list = ParameterTuple(self.w_hh_list)

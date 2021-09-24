@@ -1,15 +1,15 @@
 import mindspore.nn as nn
 import mindspore.ops as P
-from mindspore.ops.operations import sparse_ops
 from .gru import GRU
 from .bert import BertModel
+from mindspore.common.initializer import TruncatedNormal
 
 class MemoryNet(nn.Cell):
     def __init__(self, vocab_size, embed_size, hidden_size):
         super().__init__()
-        self.kn_embedding = nn.Embedding(vocab_size, embed_size)
+        self.kn_embedding = nn.Embedding(vocab_size, embed_size, embedding_table='xavier_uniform')
         self.gru = GRU(embed_size, hidden_size, candidate_activation='relu')
-        self.fc = nn.Dense(hidden_size * 2, 256)
+        self.fc = nn.Dense(hidden_size * 2, 256, weight_init='xavier_uniform', has_bias=False)
 
     def construct(self, inputs, seq_length):
         embed_inputs = self.kn_embedding(inputs)
@@ -20,7 +20,7 @@ class MemoryNet(nn.Cell):
 class Attention(nn.Cell):
     def __init__(self, hidden_size):
         super().__init__()
-        self.fc = nn.Dense(hidden_size, 1, has_bias=False)
+        self.fc = nn.Dense(hidden_size, 1, weight_init='xavier_uniform', has_bias=False)
     def construct(self, hidden_mem, encoder_vec, encoder_vec_proj):
         hidden_mem = P.ExpandDims()(hidden_mem, 1)
         concated = P.BroadcastTo((encoder_vec_proj.shape))(hidden_mem)
@@ -39,7 +39,7 @@ class Retrieval(nn.Cell):
         self.bert = BertModel(config)
         self.memory = MemoryNet(config.vocab_size, config.hidden_size, 128)
         self.attention = Attention(config.hidden_size)
-        self.fc = nn.Dense(config.hidden_size * 2 if self.use_kn else config.hidden_size, 2)
+        self.fc = nn.Dense(config.hidden_size * 2 if self.use_kn else config.hidden_size, 2, weight_init=TruncatedNormal(config.initializer_range))
         self.dropout = nn.Dropout(1-config.hidden_dropout_prob)
 
     def construct(self, input_ids, segment_ids, position_ids=None, kn_ids=None, seq_length=None):

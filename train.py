@@ -5,6 +5,7 @@ from mindspore import context
 from src.model import RetrievalWithLoss
 from src.bert import BertConfig
 from src.lr_schedule import Noam
+from src.callbacks import LossCallBack
 from mindspore.nn.optim import Adam
 from mindspore.train.model import Model
 from mindspore.nn import TrainOneStepCell
@@ -24,7 +25,7 @@ def parse_args():
                         help='Total token number in batch for training. (default: %(default)d)')
     parser.add_argument('--vocab_size', type=int, default=14373,
                         help='Total token number in batch for training. (default: %(default)d)')
-    parser.add_argument('--learning_rate', type=float, default=1e-2,
+    parser.add_argument('--learning_rate', type=float, default=0.1,
                         help='Learning rate used to train with warmup. (default: %(default)f)')
     parser.add_argument('--weight_decay', type=float, default=0.01,
                         help='Weight decay rate for L2 regularizer. (default: %(default)f)')
@@ -60,14 +61,13 @@ def run_duconv():
     optimizer = Adam(network.trainable_params(), lr_schedule)
     network_one_step = TrainOneStepCell(network, optimizer)
     model = Model(network_one_step)
-    ckpt_config = CheckpointConfig(save_checkpoint_steps=steps_per_epoch, keep_checkpoint_max=1)
+    ckpt_config = CheckpointConfig(save_checkpoint_steps=steps_per_epoch, keep_checkpoint_max=args.epoch)
     ckpoint_cb = ModelCheckpoint(prefix=args.task_name,
                                  directory=None if args.save_checkpoint_path == "" else args.save_checkpoint_path,
                                  config=ckpt_config)
-    callbacks = [TimeMonitor(dataset.get_dataset_size()), LossMonitor(), ckpoint_cb]
+    callbacks = [TimeMonitor(dataset.get_dataset_size()), LossCallBack(10), LossMonitor(), ckpoint_cb]
 
     model.train(args.epoch, dataset, callbacks)
-
 
 if __name__ == "__main__":
     run_duconv()

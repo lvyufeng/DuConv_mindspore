@@ -139,3 +139,4 @@ target.txt*
 dataset/
 analyze_fail*
 data*
+save_model/
