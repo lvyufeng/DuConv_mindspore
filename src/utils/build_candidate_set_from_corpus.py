@@ -10,9 +10,9 @@ import functools
 def cmp(a, b):
     len_a, len_b = len(a[1]), len(b[1])
     if len_a > len_b:
-        return -1
-    elif len_a < len_b:
         return 1
+    elif len_a < len_b:
+        return -1
     else:
         return 0
 

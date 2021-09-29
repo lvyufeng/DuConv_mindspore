@@ -4,10 +4,9 @@ import mindspore.ops as P
 import mindspore.numpy as mnp
 import mindspore.common.dtype as mstype
 from mindspore.common.tensor import Tensor
-from typing import Optional
-from mindspore import Tensor, Parameter
-from mindspore.common.initializer import initializer, XavierUniform, Zero, TruncatedNormal, Constant
-
+from mindspore import Tensor
+from mindspore.common.initializer import Zero, TruncatedNormal, Constant
+from src.dropout import Dropout
 class GELU(nn.Cell):
     def __init__(self):
         super().__init__()
@@ -43,7 +42,7 @@ class ScaledDotProductAttention(nn.Cell):
         self.masked_fill = MaskedFill(-1e9)
 
         if dropout > 0.0:
-            self.dropout = nn.Dropout(1-dropout)
+            self.dropout = Dropout(1-dropout)
         else:
             self.dropout = None
 
@@ -145,7 +144,7 @@ class PoswiseFeedForwardNet(nn.Cell):
         self.fc2 = nn.Dense(d_ff, d_model, weight_init='xavier_uniform', bias_init=Zero())
         self.activation = activation_map.get(activation, nn.GELU())
         self.layer_norm = nn.LayerNorm((d_model,), epsilon=1e-12, gamma_init=Constant(1.0), beta_init=Zero())
-        self.dropout = nn.Dropout(1-dropout)
+        self.dropout = Dropout(1-dropout)
     def construct(self, inputs):
         residual = inputs
         outputs = self.fc1(inputs)
@@ -162,7 +161,7 @@ class BertEmbeddings(nn.Cell):
         self.pos_embed = nn.Embedding(config.max_position_embeddings, config.hidden_size, embedding_table='xavier_uniform')
         self.seg_embed = nn.Embedding(config.type_vocab_size, config.hidden_size, embedding_table='xavier_uniform')
         self.norm = nn.LayerNorm((config.hidden_size,), epsilon=1e-12, gamma_init=Constant(1.0), beta_init=Zero())
-        self.dropout = nn.Dropout(1-config.hidden_dropout_prob)
+        self.dropout = Dropout(1-config.hidden_dropout_prob)
 
         self.expand_dims = P.ExpandDims()
 

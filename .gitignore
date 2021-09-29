@@ -140,3 +140,4 @@ dataset/
 analyze_fail*
 data*
 save_model*
+output/

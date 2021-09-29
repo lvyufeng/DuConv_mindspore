@@ -2,6 +2,7 @@ import mindspore.nn as nn
 import mindspore.ops as P
 from .gru import GRU
 from .bert import BertModel
+from .dropout import Dropout
 from mindspore.common.initializer import TruncatedNormal
 
 class MemoryNet(nn.Cell):
@@ -40,7 +41,7 @@ class Retrieval(nn.Cell):
         self.memory = MemoryNet(config.vocab_size, config.hidden_size, 128)
         self.attention = Attention(config.hidden_size)
         self.fc = nn.Dense(config.hidden_size * 2 if self.use_kn else config.hidden_size, 2, weight_init=TruncatedNormal(config.initializer_range))
-        self.dropout = nn.Dropout(1-config.hidden_dropout_prob)
+        self.dropout = Dropout(1-config.hidden_dropout_prob)
 
     def construct(self, input_ids, segment_ids, position_ids=None, kn_ids=None, seq_length=None):
         if len(seq_length.shape) != 1:

@@ -27,6 +27,7 @@ def parse_args():
     parser.add_argument("--eval_data_file_path", type=str, default="",
                         help="Data path, it is better to use absolute path")
     parser.add_argument("--load_checkpoint_path", type=str, default="", help="Save checkpoint path")
+    parser.add_argument("--save_file_path", type=str, default="", help="Save checkpoint path")
     args = parser.parse_args()
 
     return args
@@ -48,7 +49,7 @@ def run_duconv():
     print(not_loaded)
     network.set_train(False)
 
-    f = open('data/output.txt', 'w')
+    f = open(args.save_file_path, 'w')
     iterator = dataset.create_tuple_iterator()
     for item in iterator:
         output = network(*item[:-1])
