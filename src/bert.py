@@ -7,6 +7,7 @@ from mindspore.common.tensor import Tensor
 from mindspore import Tensor
 from mindspore.common.initializer import Zero, TruncatedNormal, Constant
 from src.dropout import Dropout
+
 class GELU(nn.Cell):
     def __init__(self):
         super().__init__()
@@ -103,8 +104,8 @@ def get_attn_pad_mask(seq_q, seq_k):
     batch_size, len_q = seq_q.shape
     batch_size, len_k = seq_k.shape
 
-    # pad_attn_mask = P.ExpandDims()(P.ZerosLike()(seq_k), 1)
-    pad_attn_mask = P.ExpandDims()(P.Equal()(seq_k, 0), 1)
+    pad_attn_mask = P.ExpandDims()(P.ZerosLike()(seq_k), 1)
+    # pad_attn_mask = P.ExpandDims()(P.Equal()(seq_k, 0), 1)
     pad_attn_mask = P.Cast()(pad_attn_mask, mstype.int32)
     pad_attn_mask = P.BroadcastTo((batch_size, len_q, len_k))(pad_attn_mask)
     # pad_attn_mask = P.Cast()(pad_attn_mask, mstype.bool_)

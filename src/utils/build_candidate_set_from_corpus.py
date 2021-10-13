@@ -1,10 +1,32 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*- 
+######################################################################
+#   Copyright (c) 2019 PaddlePaddle Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+######################################################################
+"""
+File: build_candidate_set_from_corpus.py
+"""
 
 from __future__ import print_function
 import sys
 import json
 import random
 import collections
+
+# reload(sys)
+# sys.setdefaultencoding('utf8')
 import functools
 
 def cmp(a, b):
@@ -16,6 +38,7 @@ def cmp(a, b):
     else:
         return 0
 
+
 def build_candidate_set_from_corpus(corpus_file, candidate_set_file):
     """
     build candidate set from corpus
@@ -24,7 +47,7 @@ def build_candidate_set_from_corpus(corpus_file, candidate_set_file):
     candidate_set_mater = {}
     candidate_set_list = []
     slot_dict = {"topic_a": 1, "topic_b": 1}
-    with open(corpus_file, 'r',encoding='utf-8') as f:
+    with open(corpus_file, 'r') as f:
         for i, line in enumerate(f):
             conversation = json.loads(line.strip(), encoding="utf-8", \
                                       object_pairs_hook=collections.OrderedDict)
@@ -61,7 +84,9 @@ def build_candidate_set_from_corpus(corpus_file, candidate_set_file):
             for j, utterance in enumerate(session):
                 if j % 2 == 1: continue
                 key = '_'.join([domain_a, domain_b, str(j)])
+
                 cover_att = sorted(cover_att_list[j], key=functools.cmp_to_key(cmp), reverse=True)
+
                 utterance_gener = utterance
                 for [p_key, o] in cover_att:
                     utterance_gener = utterance_gener.replace(o, p_key)
@@ -74,27 +99,31 @@ def build_candidate_set_from_corpus(corpus_file, candidate_set_file):
                         candidate_set_gener[key].append(utterance_gener)
                     else:
                         candidate_set_gener[key] = [utterance_gener]
+                
                 utterance_mater = utterance
                 for [p_key, o] in [["topic_a", topic_a], ["topic_b", topic_b]]:
                     utterance_mater = utterance_mater.replace(o, p_key)
+
                 if key in candidate_set_mater:
                     candidate_set_mater[key].append(utterance_mater)
                 else:
                     candidate_set_mater[key] = [utterance_mater]
 
                 candidate_set_list.append(utterance_mater)
-                break
 
-    fout = open(candidate_set_file, 'w', encoding="utf-8")
-    fout.write(json.dumps(candidate_set_gener, ensure_ascii=False ) + "\n")
+    fout = open(candidate_set_file, 'w')
+    fout.write(json.dumps(candidate_set_gener, ensure_ascii=False) + "\n")
     fout.write(json.dumps(candidate_set_mater, ensure_ascii=False) + "\n")
     fout.write(json.dumps(candidate_set_list, ensure_ascii=False) + "\n")
     fout.write(json.dumps(slot_dict, ensure_ascii=False))
     fout.close()
 
+
 def main():
+    """
+    main
+    """
     build_candidate_set_from_corpus(sys.argv[1], sys.argv[2])
-    print(sys.argv[1], sys.argv[2])
 
 if __name__ == '__main__':
     try:

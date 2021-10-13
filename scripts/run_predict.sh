@@ -2,7 +2,7 @@
 candidate_file=data/candidate.test.txt
 score_file=output/score.txt
 predict_file=output/predict.txt
-load_checkpoint_path=save_model/match_kn_gene-22_6517.ckpt
+load_checkpoint_path=save_model/match_kn_gene_2-7_4862.ckpt
 python predict.py --task_name=match_kn_gene \
                   --max_seq_length=128 \
                   --batch_size=10 \
