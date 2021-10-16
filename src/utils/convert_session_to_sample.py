@@ -1,19 +1,24 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+################################################################################
+#
+# Copyright (c) 2019 Baidu.com, Inc. All Rights Reserved
+#
+################################################################################
 """
 File: convert_session_to_sample.py
 """
 
-from __future__ import print_function
 import sys
 import json
 import collections
+
 
 def convert_session_to_sample(session_file, sample_file):
     """
     convert_session_to_sample
     """
-    fout = open(sample_file, 'w', encoding="utf-8")
+    fout = open(sample_file, 'w')
     with open(session_file, 'r') as f:
         for i, line in enumerate(f):
             session = json.loads(line.strip(), encoding="utf-8", \

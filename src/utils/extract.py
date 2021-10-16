@@ -1,12 +1,18 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+################################################################################
+#
+# Copyright (c) 2019 Baidu.com, Inc. All Rights Reserved
+#
+################################################################################
 """
 File: extract_predict_utterance.py
 """
 
-from __future__ import print_function
-
 import sys
 import json
 import collections
+
 
 def extract_predict_utterance(sample_file, score_file, output_file):
     """

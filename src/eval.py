@@ -1,10 +1,15 @@
-'''
-File : eval.py
-'''
-
-import math
+"""
+File: eval.py
+"""
+ 
 import sys
+import math
 from collections import Counter
+
+if len(sys.argv) < 2:
+    print("Usage: " + sys.argv[0] + " eval_file")
+    print("eval file format: pred_response \t gold_response")
+    exit()
 
 def get_dict(tokens, ngram, gdict=None):
     """
@@ -61,7 +66,7 @@ def calc_cover_rate(pair_list, ngram):
     """
     calc_cover_rate
     """
-    result = [0.0, 0.0] 
+    result = [0.0, 0.0] # [cover_count, total_count]
     for pair in pair_list:
         pred_tokens, gold_tokens = pair
         count(pred_tokens, gold_tokens, ngram, result)
@@ -76,6 +81,7 @@ def calc_bleu(pair_list):
     bp = calc_bp(pair_list)
     cover_rate1 = calc_cover_rate(pair_list, 1)
     cover_rate2 = calc_cover_rate(pair_list, 2)
+    cover_rate3 = calc_cover_rate(pair_list, 3)
     bleu1 = 0
     bleu2 = 0
     bleu3 = 0
@@ -83,7 +89,8 @@ def calc_bleu(pair_list):
         bleu1 = bp * math.exp(math.log(cover_rate1))
     if cover_rate2 > 0:
         bleu2 = bp * math.exp((math.log(cover_rate1) + math.log(cover_rate2)) / 2)
-
+    if cover_rate3 > 0:
+        bleu3 = bp * math.exp((math.log(cover_rate1) + math.log(cover_rate2) + math.log(cover_rate3)) / 3)
     return [bleu1, bleu2]
 
 
@@ -99,7 +106,8 @@ def calc_distinct_ngram(pair_list, ngram):
     for key, freq in pred_dict.items():
         ngram_total += freq
         ngram_distinct_count += 1 
-
+        #if freq == 1:
+        #    ngram_distinct_count += freq
     return ngram_distinct_count / ngram_total
 
 
@@ -132,8 +140,6 @@ def calc_f1(data):
     return f1
 
 
-
-print("begin")
 eval_file = sys.argv[1]
 sents = []
 for line in open(eval_file):
@@ -143,9 +149,11 @@ for line in open(eval_file):
     pred_tokens = tk[0].strip().split(" ")
     gold_tokens = tk[1].strip().split(" ")
     sents.append([pred_tokens, gold_tokens])
-
+# calc f1
 f1 = calc_f1(sents)
+# calc bleu
 bleu1, bleu2 = calc_bleu(sents)
+# calc distinct
 distinct1, distinct2 = calc_distinct(sents)
 
 output_str = "F1: %.2f%%\n" % (f1 * 100)
@@ -154,6 +162,3 @@ output_str += "BLEU2: %.3f%%\n" % bleu2
 output_str += "DISTINCT1: %.3f%%\n" % distinct1
 output_str += "DISTINCT2: %.3f%%\n" % distinct2
 sys.stdout.write(output_str)
-
-    
-

@@ -44,7 +44,7 @@ def parse_args():
 def run_duconv():
     """run duconv task"""
     args = parse_args()
-    context.set_context(mode=context.GRAPH_MODE)
+    context.set_context(mode=context.GRAPH_MODE, max_call_depth=10000)
     use_kn = True if "kn" in args.task_name else False
 
     config = BertConfig(seq_length=args.max_seq_length, vocab_size=args.vocab_size)

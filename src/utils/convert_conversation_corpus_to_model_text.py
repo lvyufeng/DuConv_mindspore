@@ -1,33 +1,27 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+################################################################################
+#
+# Copyright (c) 2019 Baidu.com, Inc. All Rights Reserved
+#
+################################################################################
 """
 File: convert_conversation_corpus_to_model_text.py
 """
 
-from __future__ import print_function
 import sys
-sys.path.append("./")
 import re
 import json
 import collections
 from construct_candidate import get_candidate_for_conversation
-import functools
 
-def cmp(a, b):
-    len_a, len_b = len(a[1]), len(b[1])
-    if len_a > len_b:
-        return -1
-    elif len_a < len_b:
-        return 1
-    else:
-        return 0
 
 def parser_char_for_word(word):
     """
     parser char for word
     """
     if word.isdigit():
-        word = word
+        return word
     for i in range(len(word)):
         if word[i] >= u'\u4e00' and word[i] <= u'\u9fa5':
             word_out = " ".join([t for t in word])
@@ -67,7 +61,6 @@ def topic_generalization_for_list(text_list, topic_list):
 
 
 def preprocessing_for_one_conversation(text, \
-                                       candidate_set=None, \
                                        candidate_num=10, \
                                        use_knowledge=True, \
                                        topic_generalization=False, \
@@ -84,7 +77,6 @@ def preprocessing_for_one_conversation(text, \
     history = conversation["history"]
     if not for_predict:
         response = conversation["response"]
-
 
     topic_a = goal[0][1]
     topic_b = goal[0][2]
@@ -109,13 +101,13 @@ def preprocessing_for_one_conversation(text, \
     if "candidate" in conversation:
         candidates = conversation["candidate"]
     else:
-        assert candidate_num > 0 and candidate_set is not None
+        assert candidate_num > 0
         candidates = get_candidate_for_conversation(conversation,
-                                                    candidate_set,
                                                     candidate_num=candidate_num)
 
     if topic_generalization:
         topic_list = sorted(topic_dict.items(), key=lambda item: len(item[1]), reverse=True)
+
         goal = [topic_generalization_for_list(spo, topic_list) for spo in goal]
 
         knowledge = [topic_generalization_for_list(spo, topic_list) for spo in knowledge]
@@ -162,8 +154,8 @@ def preprocessing_for_one_conversation(text, \
 
     return model_text, candidates
 
-def convert_conversation_corpus_to_model_text(corpus_file, 
-                                              text_file,
+
+def convert_conversation_corpus_to_model_text(corpus_file, text_file,
                                               use_knowledge=True,
                                               topic_generalization=False,
                                               for_predict=True):
@@ -174,9 +166,7 @@ def convert_conversation_corpus_to_model_text(corpus_file,
     with open(corpus_file, 'r') as f:
         for i, line in enumerate(f):
             model_text, _ = preprocessing_for_one_conversation(
-                line.strip(), 
-                candidate_set=None,
-                candidate_num=0,
+                line.strip(), candidate_num=0,
                 use_knowledge=use_knowledge,
                 topic_generalization=topic_generalization,
                 for_predict=for_predict)

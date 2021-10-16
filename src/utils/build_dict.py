@@ -1,20 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*- 
+################################################################################
+#
+# Copyright (c) 2019 Baidu.com, Inc. All Rights Reserved
+#
+################################################################################
 """
 File: build_dict.py
 """
 
-from __future__ import print_function
 import sys
-import functools
 
-def cmp(a, b):
-    if a[1] > b[1]:
-        return 1
-    elif a[1] < b[1]:
-        return -1
-    else:
-        return 0
 
 def build_dict(corpus_file, dict_file):
     """
@@ -38,7 +34,9 @@ def build_dict(corpus_file, dict_file):
     dict["[UNK]"] = max_frequency + 3
     dict["[CLS]"] = max_frequency + 2
     dict["[SEP]"] = max_frequency + 1
-    words = sorted(dict.items(), key=functools.cmp_to_key(cmp), reverse=True)
+
+    words = sorted(dict.items(), key=lambda item: item[1], reverse=True)
+
     fout = open(dict_file, 'w')
     for word, frequency in words:
         fout.write(word + '\n')
@@ -53,6 +51,7 @@ def main():
     if len(sys.argv) < 3:
         print("Usage: " + sys.argv[0] + " corpus_file dict_file")
         exit()
+
     build_dict(sys.argv[1], sys.argv[2])
 
 

@@ -15,3 +15,7 @@ python src/reader.py --task_name=match_kn_gene \
                      --vocab_path=data/gene.dict \
                      --input_file=data/build.test.txt \
                      --output_file=../../test.mindrecord
+
+mv ../../train.mindrecord* ./data
+mv ../../dev.mindrecord* ./data
+mv ../../test.mindrecord* ./data

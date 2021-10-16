@@ -6,7 +6,6 @@ import mindspore.common.dtype as mstype
 from mindspore.common.tensor import Tensor
 from mindspore import Tensor
 from mindspore.common.initializer import Zero, TruncatedNormal, Constant
-from src.dropout import Dropout
 
 class GELU(nn.Cell):
     def __init__(self):
@@ -43,7 +42,7 @@ class ScaledDotProductAttention(nn.Cell):
         self.masked_fill = MaskedFill(-1e9)
 
         if dropout > 0.0:
-            self.dropout = Dropout(1-dropout)
+            self.dropout = nn.Dropout(1-dropout)
         else:
             self.dropout = None
 
@@ -62,13 +61,13 @@ class MultiHeadAttention(nn.Cell):
     def __init__(self, d_model, n_heads, dropout, initializer_range=0.02):
         super().__init__()
         self.n_heads = n_heads
-        self.W_Q = nn.Dense(d_model, d_model, weight_init='xavier_uniform', bias_init=Zero())
-        self.W_K = nn.Dense(d_model, d_model, weight_init='xavier_uniform', bias_init=Zero())
-        self.W_V = nn.Dense(d_model, d_model, weight_init='xavier_uniform', bias_init=Zero())
-        self.linear = nn.Dense(d_model, d_model, weight_init='xavier_uniform', bias_init=Zero())
+        self.W_Q = nn.Dense(d_model, d_model)
+        self.W_K = nn.Dense(d_model, d_model)
+        self.W_V = nn.Dense(d_model, d_model)
+        self.linear = nn.Dense(d_model, d_model)
         self.head_dim = d_model // n_heads
         assert self.head_dim * n_heads == d_model, "embed_dim must be divisible by num_heads"
-        self.layer_norm = nn.LayerNorm((d_model, ), epsilon=1e-12, gamma_init=Constant(1.0), beta_init=Zero())
+        self.layer_norm = nn.LayerNorm((d_model, ), epsilon=1e-6)
         self.attention = ScaledDotProductAttention(self.head_dim, dropout)
         # ops
         self.transpose = P.Transpose()
@@ -104,8 +103,8 @@ def get_attn_pad_mask(seq_q, seq_k):
     batch_size, len_q = seq_q.shape
     batch_size, len_k = seq_k.shape
 
-    pad_attn_mask = P.ExpandDims()(P.ZerosLike()(seq_k), 1)
-    # pad_attn_mask = P.ExpandDims()(P.Equal()(seq_k, 0), 1)
+    # pad_attn_mask = P.ExpandDims()(P.ZerosLike()(seq_k), 1)
+    pad_attn_mask = P.ExpandDims()(P.Equal()(seq_k, 0), 1)
     pad_attn_mask = P.Cast()(pad_attn_mask, mstype.int32)
     pad_attn_mask = P.BroadcastTo((batch_size, len_q, len_k))(pad_attn_mask)
     # pad_attn_mask = P.Cast()(pad_attn_mask, mstype.bool_)
@@ -141,11 +140,11 @@ class BertConfig:
 class PoswiseFeedForwardNet(nn.Cell):
     def __init__(self, d_model, d_ff, activation:str='gelu', initializer_range=0.02, dropout=0.0):
         super().__init__()
-        self.fc1 = nn.Dense(d_model, d_ff, weight_init='xavier_uniform', bias_init=Zero())
-        self.fc2 = nn.Dense(d_ff, d_model, weight_init='xavier_uniform', bias_init=Zero())
+        self.fc1 = nn.Dense(d_model, d_ff)
+        self.fc2 = nn.Dense(d_ff, d_model)
         self.activation = activation_map.get(activation, nn.GELU())
-        self.layer_norm = nn.LayerNorm((d_model,), epsilon=1e-12, gamma_init=Constant(1.0), beta_init=Zero())
-        self.dropout = Dropout(1-dropout)
+        self.layer_norm = nn.LayerNorm((d_model,), epsilon=1e-6)
+        self.dropout = nn.Dropout(1-dropout)
     def construct(self, inputs):
         residual = inputs
         outputs = self.fc1(inputs)
@@ -158,11 +157,11 @@ class PoswiseFeedForwardNet(nn.Cell):
 class BertEmbeddings(nn.Cell):
     def __init__(self, config):
         super().__init__()
-        self.tok_embed = nn.Embedding(config.vocab_size, config.hidden_size, embedding_table='xavier_uniform')
-        self.pos_embed = nn.Embedding(config.max_position_embeddings, config.hidden_size, embedding_table='xavier_uniform')
-        self.seg_embed = nn.Embedding(config.type_vocab_size, config.hidden_size, embedding_table='xavier_uniform')
-        self.norm = nn.LayerNorm((config.hidden_size,), epsilon=1e-12, gamma_init=Constant(1.0), beta_init=Zero())
-        self.dropout = Dropout(1-config.hidden_dropout_prob)
+        self.tok_embed = nn.Embedding(config.vocab_size, config.hidden_size)
+        self.pos_embed = nn.Embedding(config.max_position_embeddings, config.hidden_size)
+        self.seg_embed = nn.Embedding(config.type_vocab_size, config.hidden_size)
+        self.norm = nn.LayerNorm((config.hidden_size,), epsilon=1e-6)
+        self.dropout = nn.Dropout(1-config.hidden_dropout_prob)
 
         self.expand_dims = P.ExpandDims()
 
@@ -213,7 +212,7 @@ class BertModel(nn.Cell):
         super().__init__(config)
         self.embeddings = BertEmbeddings(config)
         self.encoder = BertEncoder(config)
-        self.pooler = nn.Dense(config.hidden_size, config.hidden_size, activation='tanh', weight_init=TruncatedNormal(config.initializer_range), bias_init=Zero())
+        self.pooler = nn.Dense(config.hidden_size, config.hidden_size, activation='tanh')
         
     def construct(self, input_ids, segment_ids, position_ids=None):
         outputs = self.embeddings(input_ids, segment_ids, position_ids)

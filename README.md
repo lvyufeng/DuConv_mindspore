@@ -2,12 +2,22 @@
 
 ### 用法
 
-#### Ascend处理器上运行
+#### 安装GPU版本MindSpore
 
 ```bash
-bash src/run_train.sh
+pip install mindspore-gpu==1.5.0
 ```
-#### Ascend处理器上预测
+
+#### GPU处理器上运行
+
 ```bash
-bash run_predict.sh
+bash script/run_train.sh [task_type]
+# task type: match, match_kn, match_kn_gene
+# default: match_kn_gene
+```
+#### GPU处理器上预测
+```bash
+bash script/run_predict.sh
+# task type: match, match_kn, match_kn_gene
+# default: match_kn_gene
 ```
