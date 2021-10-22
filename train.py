@@ -1,6 +1,4 @@
-import mindspore
 import argparse
-import numpy as np
 from mindspore import context
 from src.model import RetrievalWithLoss
 from src.bert import BertConfig
@@ -8,9 +6,9 @@ from src.lr_schedule import Noam
 from src.callbacks import TimeMonitor
 from mindspore.nn.optim import Adam
 from mindspore.train.model import Model
-from mindspore.nn import TrainOneStepCell
 from src.dataset import create_dataset
 from mindspore.train.callback import CheckpointConfig, ModelCheckpoint, LossMonitor
+from mindspore.common import set_seed
 
 def parse_args():
     """set and check parameters"""
@@ -45,6 +43,7 @@ def run_duconv():
     """run duconv task"""
 
     args = parse_args()
+    set_seed(0)
     context.set_context(mode=context.GRAPH_MODE)
     use_kn = True if "kn" in args.task_name else False
 

@@ -1,13 +1,6 @@
-import os
-import time
 import argparse
-import numpy as np
-import mindspore
-import mindspore.nn as nn
 from mindspore import context
-from mindspore.common.tensor import Tensor
-import mindspore.ops.operations as P
-from mindspore import context
+from mindspore.common import set_seed
 from mindspore.train.serialization import load_checkpoint, load_param_into_net
 from src.model import RetrievalWithSoftmax
 from src.bert import BertConfig
@@ -35,6 +28,7 @@ def parse_args():
 def run_duconv():
     """run duconv task"""
     args = parse_args()
+    set_seed(0)
     context.set_context(mode=context.GRAPH_MODE)
     use_kn = True if "kn" in args.task_name else False
     config = BertConfig(seq_length=args.max_seq_length, vocab_size=args.vocab_size)

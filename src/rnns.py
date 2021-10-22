@@ -98,9 +98,9 @@ class GRU(nn.Cell):
         output_f, _, _, _, _, _ = self.gru(x, w_f_ih, w_f_hh, b_f_ih, b_f_hh, None, hx[0])
         output_b, _, _, _, _, _ = self.gru(x_b, w_b_ih, w_b_hh, b_b_ih, b_b_hh, None, hx[1])
         if seq_length is None:
-            output_b = self.reverse(output_b)
             h_f = output_f[-1]
             h_b = output_b[-1]
+            output_b = self.reverse(output_b)
         else:
             output_b = self.reverse_sequence(output_b, seq_length)
             batch_index = mnp.arange(0, x.shape[1], 1, mstype.int32)
